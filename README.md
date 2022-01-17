@@ -18,3 +18,22 @@ To accessing the notebooks please use [Databricks Projects](https://docs.databri
 * Build DLT pipeline with quality checks (Python)
 * Build DLT pipeline with CDC to track changes over delta tables (Python)
 
+
+## Reading Resources
+
+* [Delta Live Table Quickstart on AWS](https://docs.databricks.com/data-engineering/delta-live-tables/delta-live-tables-quickstart.html)
+* [Delta Live Table Quickstart on Azure](https://docs.microsoft.com/en-us/azure/databricks/data-engineering/delta-live-tables/delta-live-tables-quickstart)
+* [Delta Live Table Blog](https://databricks.com/discover/pages/getting-started-with-delta-live-tables)
+
+## Setup/Requirements
+Notebooks requires a running Databricks workspace. There is generator scripts located in lib. Run 00-Retail_Data_CDC_Generator.py in Databricks to generate retail data for 1-Retail_DLT_sql and 01-Retail_Data_Generator.py to generate data for 2-Retail_DLT_CDC_sql. 
+
+### DBR Version
+The features used in the notebooks require DBR 8.3+
+
+### Repos
+If you have repos enabled on your Databricks workspace. You can directly import this repo and run the notebooks as is and avoid the DBC archive step.
+
+### DBC Archive
+Download the DBC archive from releases and import the archive into your Databricks workspace.
+
