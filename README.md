@@ -26,7 +26,7 @@ To accessing the notebooks please use [Databricks Projects](https://docs.databri
 * [Delta Live Table Blog](https://databricks.com/discover/pages/getting-started-with-delta-live-tables)
 
 ## Setup/Requirements
-Notebooks requires a running Databricks workspace. There is generator scripts located in lib. Run 00-Retail_Data_CDC_Generator.py in Databricks to generate retail data for 1-Retail_DLT_sql and 01-Retail_Data_Generator.py to generate data for 2-Retail_DLT_CDC_sql. 
+Notebooks requires a running Databricks workspace. There is generator scripts located in Data Generators. Run 00-Retail_Data_CDC_Generator.py in Databricks to generate retail data for 1-Retail_DLT_sql and 01-Retail_Data_Generator.py to generate data for 2-Retail_DLT_CDC_sql. 
 
 ### DBR Version
 The features used in the notebooks require DBR 8.3+
