@@ -1,0 +1,26 @@
+{
+    "name": "Customers_CDC",
+    "storage": "dbfs:/home/morganmazouchi@databricks.com/mj_retail/dlt_storage",
+    "configuration": {
+        "pipelines.applyChangesPreviewEnabled": "true"
+    },
+    "clusters": [
+        {
+            "label": "default",
+            "autoscale": {
+                "min_workers": 1,
+                "max_workers": 5
+            }
+        }
+    ],
+    "libraries": [
+        {
+            "notebook": {
+                "path": "/Repos/mojgan.mazouchi@databricks.com/Delta-Live-Tables/notebooks/2-Retail_DLT_CDC_sql"
+            }
+        }
+    ],
+    "target": "mj_retail",
+    "continuous": false,
+    "development": true
+}

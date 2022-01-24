@@ -8,12 +8,12 @@
 # MAGIC 4. Cmd 5 output should show data being generated into storage path
 # MAGIC 5. Path to the generated data is printed in Cmd 5
 # MAGIC 6. When finished generating data, "Stop Execution"
-# MAGIC 7. To refresh landing zone, run Cmd 7
+# MAGIC 7. To refresh landing zone, run last cell
 
 # COMMAND ----------
 
 # DBTITLE 1,Run First for Widgets
-dbutils.widgets.text('path', '/home/first.last/dlt_demo', 'Storage Path')
+dbutils.widgets.text('path', '/home/first.last/mj_retail', 'Storage Path')
 dbutils.widgets.combobox('batch_wait', '1', ['10', '20', '30', '50'], 'Speed (secs between writes)')
 dbutils.widgets.combobox('num_recs', '50', ['100', '1000', '2000'], 'Volume (# records per writes)')
 
@@ -59,7 +59,7 @@ dbutils.fs.put(output_path + "/retail_schema.json",
     "operation": {
     "description": "Operation holds the action needs to be taken on corresponding customer record in the data",
       "type": "string",
-      "enum": ["DELETE", "APPEND"]
+      "enum": ["DELETE", "APPEND", null]
     },
     "email": {
       "description": "Customer Email address.",
@@ -268,6 +268,12 @@ print ("Storage Path is:", f'{output_path}/landing')
 df = spark.read.json(f'{output_path}/landing')
 df.createOrReplaceTempView("retail_data_cdc");
 df.display(5)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 
+# MAGIC Next step, set up [Delta live table notebook](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/968903799735557/command/968903799735558) in "notebooks/2-Retail_DLT_CDC_sql"
 
 # COMMAND ----------
 
