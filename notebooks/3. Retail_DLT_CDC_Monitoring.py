@@ -1,8 +1,9 @@
 # Databricks notebook source
 # MAGIC %md # Delta Live Tables - Monitoring  
 # MAGIC   
-# MAGIC Each DLT Pipeline stands up its own events table in the Storage Location defined on the pipeline.  
-# MAGIC From this table we can see what is happening and the quality of the data passing through it.
+# MAGIC Each DLT Pipeline stands up its own events table in the Storage Location defined on the pipeline. From this table we can see what is happening and the quality of the data passing through it.
+# MAGIC 
+# MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png"/>
 
 # COMMAND ----------
 
