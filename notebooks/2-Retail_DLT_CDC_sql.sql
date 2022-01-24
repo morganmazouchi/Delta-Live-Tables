@@ -2,6 +2,8 @@
 -- MAGIC %md
 -- MAGIC 
 -- MAGIC # Implement CDC In DLT Pipeline: Change Data Capture
+-- MAGIC 
+-- MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png", width='1500'/>
 
 -- COMMAND ----------
 
