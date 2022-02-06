@@ -19,6 +19,7 @@ dbutils.widgets.removeAll()
 dbutils.widgets.text('root_location', '/home/morganmazouchi@databricks.com/dlt_demo/')
 dbutils.widgets.text('db_name', 'mj_retail')
 dbutils.widgets.text('storage_loc','/landing')
+dbutils.widgets.text('data_loc','/dlt_storage')
 
 # COMMAND ----------
 
@@ -69,6 +70,8 @@ print('storage_path:  {}'.format(storage_path))
 # COMMAND ----------
 
 # MAGIC %md ## 02 - SETUP 
+# MAGIC 
+# MAGIC Prior to run Cmd 10, make sure you use the same path of storage path under LOCATION, that is defined in the DLT pipeline when you created the pipeline. 
 
 # COMMAND ----------
 

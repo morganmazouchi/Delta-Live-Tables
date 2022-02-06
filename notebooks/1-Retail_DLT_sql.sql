@@ -14,7 +14,7 @@
 -- MAGIC <img width="1000" src="https://databricks.com/wp-content/uploads/2021/05/Bronze-Silver-Gold-Tables.png">                
 -- MAGIC ### Setup/Requirements:
 -- MAGIC 
--- MAGIC Note: Prior to run this notebook as a pipeline, run notebook 01-Retail_Data_Generator, and use storage path printed in result of Cdm 6 in that notebook and use the path in this notebook to access to the generated retail data.
+-- MAGIC Note: Prior to run this notebook as a pipeline, run notebook 01-Retail_Data_Generator, and use storage path printed in result of Cmd 6 in that notebook and use the path in this notebook to access to the generated retail data.
 
 -- COMMAND ----------
 
@@ -75,7 +75,7 @@ CREATE LIVE TABLE client_orders_gold(
   CONSTRAINT valid_address EXPECT (address IS NOT NULL) ON VIOLATION DROP ROW
 )
 COMMENT "Retail client data with valid address joined with Sale data and partitioned by operation_date."
-TBLPROPERTIES ("quality" = "goldr")
+TBLPROPERTIES ("quality" = "gold")
 AS
 SELECT f.address, f.email, f.customer_id, f.customer_name, f.operation, f.operation_date,
     c.number_of_line_items, c.order_datetime, c.order_number, c.ordered_products

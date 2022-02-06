@@ -256,7 +256,7 @@ import time
 
 dbutils.fs.mkdirs(f'{output_path}/landing')
 
-for i in range(0, 2):
+for i in range(0, 1):
   time.sleep(int(dbutils.widgets.get('batch_wait')))
   write_batches_to_file(generate_users("user", int(dbutils.widgets.get('num_recs'))), f'/dbfs{output_path}/landing/users{i}.json')
   print(f'Finished writing batch: {i}')

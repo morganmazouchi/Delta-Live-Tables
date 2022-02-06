@@ -150,7 +150,7 @@ FROM STREAM(live.customer_bronze);
 -- MAGIC 
 -- MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/cdc_silver_layer.png" alt='Make all your data ready for BI and ML' style='float: right' width='1000'/>
 -- MAGIC 
--- MAGIC The silver `customer_silver` table will contains the most up to date view. It'll be a replicate of the original MYSQL table.
+-- MAGIC The silver `customer_silver` table will contain the most up to date view. It'll be a replicate of the original MYSQL table.
 -- MAGIC 
 -- MAGIC To propagate the `Apply Changes Into` operations downstream to the `Silver` layer, we must explicitly enable the feature in pipeline by adding and enabling the applyChanges configuration to the DLT pipeline settings.
 
