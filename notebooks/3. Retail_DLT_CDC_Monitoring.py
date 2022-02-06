@@ -71,7 +71,7 @@ print('storage_path:  {}'.format(storage_path))
 
 # MAGIC %md ## 02 - SETUP 
 # MAGIC 
-# MAGIC Prior to run Cmd 10, make sure you use the same path of storage path under LOCATION, that is defined in the DLT pipeline when you created the pipeline. 
+# MAGIC Prior to running Cmd 10, make sure you use the same path of storage path under LOCATION. This is defined in the DLT pipeline when you created your pipeline. 
 
 # COMMAND ----------
 
