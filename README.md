@@ -11,12 +11,12 @@ To accessing the notebooks please use [Databricks Projects](https://docs.databri
 ### - Retail & Sale Data
 * Build DLT pipeline with quality checks (SQL)
 * Build DLT pipeline with CDC to track changes over delta tables (SQL)
+* Build DLT pipeline with CDC to track changes over delta tables (Python)
 
 ## Demos being WIP:
 
 ### - Retail & Sale Data
 * Build DLT pipeline with quality checks (Python)
-* Build DLT pipeline with CDC to track changes over delta tables (Python)
 
 
 ## Reading Resources
