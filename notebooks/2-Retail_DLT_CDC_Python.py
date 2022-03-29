@@ -9,7 +9,7 @@
 # MAGIC ###### Resource [Change data capture with Delta Live Tables](https://docs.databricks.com/data-engineering/delta-live-tables/delta-live-tables-cdc.html)
 # MAGIC -----------------
 # MAGIC 
-# MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png", width='1500'/>
+# MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png">
 
 # COMMAND ----------
 
@@ -43,7 +43,7 @@
 # MAGIC 
 # MAGIC ### CDC Approaches 
 # MAGIC 
-# MAGIC 1- **Develop in-house CDC process:** 
+# MAGIC **1- Develop in-house CDC process:** 
 # MAGIC 
 # MAGIC ***Complex Task:*** CDC Data Replication is not a one-time easy solution. Due to the differences between Database Providers, Varying Record Formats, and the inconvenience of accessing Log Records, CDC is challenging.
 # MAGIC 
@@ -51,13 +51,13 @@
 # MAGIC 
 # MAGIC ***Overburdening:*** Developers in companies already face the burden of public queries. Additional work for building customizes CDC solution will affect existing revenue-generating projects.
 # MAGIC 
-# MAGIC 2- **Using CDC tools** such as Debezium, Hevo Data, IBM Infosphere, Qlik Replicate, Talend, Oracle GoldenGate, StreamSets.
+# MAGIC **2- Using CDC tools** such as Debezium, Hevo Data, IBM Infosphere, Qlik Replicate, Talend, Oracle GoldenGate, StreamSets.
 # MAGIC 
-# MAGIC In this demo repo we are using CDC data coming from Debezium. 
-# MAGIC Since Debezium is reading database logs:
+# MAGIC In this demo repo we are using CDC data coming from a CDC tool. 
+# MAGIC Since a CDC tool is reading database logs:
 # MAGIC We are no longer dependant on developers updating a certain column 
 # MAGIC 
-# MAGIC — Debezium takes care of capturing every changed row. It records the history of data changes in Kafka logs, from where your application consumes them. 
+# MAGIC — A CDC tool like Debezium takes care of capturing every changed row. It records the history of data changes in Kafka logs, from where your application consumes them. 
 
 # COMMAND ----------
 
@@ -65,15 +65,15 @@
 # MAGIC 
 # MAGIC ## Setup/Requirements:
 # MAGIC 
-# MAGIC Prior to run this notebook as a pipeline, run notebook 00_Retail_Data_CDC_Generator, and use storage path printed in result of Cdm 5 in that notebook and use the path in Cmd 5 in this notebook to access the generated CDC data.
+# MAGIC Prior to running this notebook as a pipeline, make sure to include a path to 1-CDC_DataGenerator notebook in your DLT pipeline, to let this notebook runs on top of the generated CDC data.
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## How to synchronize your SQL Database with your Lakehouse? 
-# MAGIC CDC flow with Debezium, autoloader and DLT pipeline:
+# MAGIC CDC flow with a CDC tool, autoloader and DLT pipeline:
 # MAGIC 
-# MAGIC - Debezium reads database logs, produces json messages that includes the changes, and streams the records with changes description to Kafka
+# MAGIC - A CDC tool reads database logs, produces json messages that includes the changes, and streams the records with changes description to Kafka
 # MAGIC - Kafka streams the messages  which holds INSERT, UPDATE and DELETE operations, and stores them in cloud object storage (S3 folder, ADLS, etc).
 # MAGIC - Using Autoloader we incrementally load the messages from cloud object storage, and stores them in Bronze table as it stores the raw messages 
 # MAGIC - Next we can perform APPLY CHANGES INTO on the cleaned Bronze layer table to propagate the most updated data downstream to the Silver Table
@@ -88,8 +88,7 @@
 # MAGIC 
 # MAGIC ###How does CDC tools like Debezium output looks like?
 # MAGIC 
-# MAGIC A json message describing the changed data
-# MAGIC Some interesting fields:
+# MAGIC A json message describing the changed data has interesting fields similar to the list below: 
 # MAGIC 
 # MAGIC - operation: an operation code (DELETE, APPEND, UPDATE, CREATE)
 # MAGIC - operation_date: the date and timestamp for the record came for each operation action
@@ -97,6 +96,13 @@
 # MAGIC Some other fields that you may see in Debezium output (not included in this demo):
 # MAGIC - before: the row before the change
 # MAGIC - after: the row after the change
+# MAGIC 
+# MAGIC To learn more about the expected fields check out [this reference](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-update-events)
+
+# COMMAND ----------
+
+# DBTITLE 1,Input data from CDC
+display(spark.read.json("/tmp/demo/cdc_raw/customers"))
 
 # COMMAND ----------
 
@@ -110,27 +116,14 @@
 # MAGIC 
 # MAGIC Autoloader allow us to efficiently ingest millions of files from a cloud storage, and support efficient schema inference and evolution at scale. In this notebook we leverage Autoloader to handle streaming (and batch) data.
 # MAGIC 
-# MAGIC Let's use it to [create our pipeline](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485&owned-by-me=true&name-order=ascend#joblist/pipelines/9c8cb908-b438-495c-931d-39fcf72c5dca) and ingest the raw JSON data being delivered by an external provider. 
-
-# COMMAND ----------
-
-# DBTITLE 1,Imports Libraries
-# MAGIC %md
-# MAGIC 
-# MAGIC It's necessary to import the `dlt` Python module to use the associated methods.
-# MAGIC 
-# MAGIC Here, we also import `pyspark.sql.functions`.
-
-# COMMAND ----------
-
-import dlt
-from pyspark.sql.functions import *
-from pyspark.sql.types import *
+# MAGIC Let's use it to create our pipeline and ingest the raw JSON data being delivered by an external provider. 
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## DLT Python Syntax
+# MAGIC 
+# MAGIC It's necessary to import the `dlt` Python module to use the associated methods. Here, we also import `pyspark.sql.functions`.
 # MAGIC 
 # MAGIC DLT tables, views, and their associated settings are configured using [decorators](https://www.python.org/dev/peps/pep-0318/#current-syntax).
 # MAGIC 
@@ -141,9 +134,10 @@ from pyspark.sql.types import *
 # COMMAND ----------
 
 # DBTITLE 1,Let's explore our incoming data - Bronze Table - Autoloader & DLT
-##Create the bronze information table containing the raw JSON data taken from the storage path printed in Cmd5 in 00_Retail_Data_CDC_Generator notebook
-
-from pyspark.sql.functions import to_timestamp, col
+##Create the bronze information table containing the raw JSON data taken from the storage path
+import dlt
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 
 @dlt.create_table(name="customer_bronze",
                   comment = "New customer data incrementally ingested from cloud object storage landing zone",
@@ -158,31 +152,22 @@ def customer_bronze():
     spark.readStream.format("cloudFiles") \
       .option("cloudFiles.format", "json") \
       .option("cloudFiles.inferColumnTypes", "true") \
-      .load("/home/morganmazouchi@databricks.com/mj_retail/landing")
+      .load("/tmp/demo/cdc_raw/customers")
   )
 
 # COMMAND ----------
 
 # DBTITLE 1,Silver Layer - Cleansed Table (Impose Constraints)
-#Create the bronze information table containing the raw JSON data taken from the storage path printed in Cmd5 in 00_Retail_Data_CDC_Generator notebook
-
 @dlt.create_table(name="customer_bronze_clean_v",
-  comment="Cleansed bronze customer view (i.e. what will become Silver)",
-  partition_cols=["operation_date"],
-  table_properties={
-    "myCompanyPipeline.quality": "silver",
-    "pipelines.autoOptimize.managed": "true"
-  }
-)
+  comment="Cleansed bronze customer view (i.e. what will become Silver)")
+
 @dlt.expect_or_drop("valid_id", "id IS NOT NULL")
-@dlt.expect_or_drop("valid_name", "name IS NOT NULL")
 @dlt.expect("valid_address", "address IS NOT NULL")
 @dlt.expect_or_drop("valid_operation", "operation IS NOT NULL")
+
 def customer_bronze_clean_v():
-  df = dlt.read_stream("customer_bronze")
-  df = df.select("address", "email", "id", "name", "operation",
-    "operation_date", "_rescued_data")
-  return df
+  return dlt.read_stream("customer_bronze") \
+            .select("address", "email", "id", "firstname", "lastname", "operation", "operation_date", "_rescued_data")
 
 # COMMAND ----------
 
@@ -200,23 +185,21 @@ def customer_bronze_clean_v():
 # DBTITLE 1,Delete unwanted clients records - Silver Table - DLT Python
 dlt.create_target_table(name="customer_silver",
   comment="Clean, merged customers",
-  partition_cols=["operation_date"],
   table_properties={
     "myCompanyPipeline.quality": "silver",
-    "pipelines.autoOptimize.managed": "true"
   }
 )
 
 # COMMAND ----------
 
 dlt.apply_changes(
-  target = "customer_silver",
-  source = "customer_bronze_clean_v",
-  keys = ["Id"],
-  sequence_by = col("operation_date"),#primary key, auto-incrementing ID of any kind that can be used to identity order of events, or timestamp
+  target = "customer_silver", #The customer table being materilized
+  source = "customer_bronze_clean_v", #the incoming CDC
+  keys = ["id"], #Primary key to match the rows to upsert/delete
+  sequence_by = col("operation_date"), #deduplicate by operation date getting the most recent value
   ignore_null_updates = False,
-  apply_as_deletes = expr("operation = 'DELETE'"),
-  except_column_list = ["operation", "operation_date"]
+  apply_as_deletes = expr("operation = 'DELETE'"), #DELETE condition
+  except_column_list = ["operation", "operation_date", "_rescued_data"] # drop metadata columns
 )
 
 # COMMAND ----------

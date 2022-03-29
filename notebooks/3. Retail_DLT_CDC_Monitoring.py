@@ -16,70 +16,17 @@ dbutils.widgets.removeAll()
 
 # COMMAND ----------
 
-dbutils.widgets.text('root_location', '/home/morganmazouchi@databricks.com/dlt_demo/')
-dbutils.widgets.text('db_name', 'mj_retail')
-dbutils.widgets.text('storage_loc','/landing')
-dbutils.widgets.text('data_loc','/dlt_storage')
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC -- Create a "table" definition against all CSV files in the data location
-# MAGIC DROP TABLE IF EXISTS $db_name.customers_source; 
-# MAGIC CREATE TABLE IF NOT EXISTS $db_name.customers_source 
-# MAGIC   (
-# MAGIC address string,
-# MAGIC email string,
-# MAGIC id string,
-# MAGIC name string,
-# MAGIC operation string,
-# MAGIC operation_date string
-# MAGIC   )
-# MAGIC  USING json
-# MAGIC OPTIONS (
-# MAGIC     path "$root_location/$db_name/$storage_loc/*.json",
-# MAGIC     header "true",
-# MAGIC     mode "FAILFAST",
-# MAGIC     schema 'address string,email string,id string,name string,operation string,operation_date string'
-# MAGIC   )
-# MAGIC ;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC SELECT *
-# MAGIC   FROM $db_name.customers_source
-# MAGIC  ORDER BY id ASC;
-
-# COMMAND ----------
-
-root_location = dbutils.widgets.get('root_location')
-db_name       = dbutils.widgets.get('db_name')
-data_loc      = dbutils.widgets.get('data_loc')
-storage_loc   = dbutils.widgets.get('storage_loc')
-storage_path  = storage_path  = root_location + db_name + data_loc
-
-print('root_location: {}\ndb_name:       {}\ndata_loc:      {}\nstorage_loc:   {}'.format(root_location,db_name,data_loc,storage_loc))
-print('storage_path:  {}'.format(storage_path))
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC USE $db_name
+dbutils.widgets.text('storage_path','/tmp/dlt_cdc')
 
 # COMMAND ----------
 
 # MAGIC %md ## 02 - SETUP 
-# MAGIC 
-# MAGIC Prior to running Cmd 10, make sure you use the same path of storage path under LOCATION. This is defined in the DLT pipeline when you created your pipeline. 
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC DROP TABLE IF EXISTS $db_name.event_log; 
-# MAGIC CREATE TABLE IF NOT EXISTS $db_name.event_log
-# MAGIC  USING delta
-# MAGIC LOCATION '$root_location$db_name$data_loc/system/events'
+# MAGIC %sql 
+# MAGIC CREATE TABLE IF NOT EXISTS demo_cdc_dlt_system_event_log_raw using delta LOCATION '$storage_path/system/events';
+# MAGIC select * from demo_cdc_dlt_system_event_log_raw;
 
 # COMMAND ----------
 
@@ -122,13 +69,11 @@ print('storage_path:  {}'.format(storage_path))
 # MAGIC        id,
 # MAGIC        timestamp,
 # MAGIC        sequence,
-# MAGIC        -- origin,
 # MAGIC        event_type,
 # MAGIC        message,
 # MAGIC        level, 
-# MAGIC        -- error ,
 # MAGIC        details
-# MAGIC   FROM $db_name.event_log
+# MAGIC   FROM demo_cdc_dlt_system_event_log_raw
 # MAGIC  ORDER BY timestamp ASC
 # MAGIC ;  
 
@@ -140,15 +85,19 @@ print('storage_path:  {}'.format(storage_path))
 
 # MAGIC %sql
 # MAGIC -- List of output datasets by type and the most recent change
-# MAGIC SELECT details:flow_definition.output_dataset output_dataset,
-# MAGIC        details:flow_definition.flow_type,
-# MAGIC        MAX(timestamp)
-# MAGIC   FROM $db_name.event_log
-# MAGIC  WHERE details:flow_definition.output_dataset IS NOT NULL
-# MAGIC  GROUP BY details:flow_definition.output_dataset,
-# MAGIC           details:flow_definition.schema,
-# MAGIC           details:flow_definition.flow_type
-# MAGIC ;
+# MAGIC create or replace temp view cdc_dlt_expectations as (
+# MAGIC   SELECT 
+# MAGIC     id,
+# MAGIC     timestamp,
+# MAGIC     details:flow_progress.metrics.num_output_rows as output_records,
+# MAGIC     details:flow_progress.data_quality.dropped_records,
+# MAGIC     details:flow_progress.status as status_update,
+# MAGIC     explode(from_json(details:flow_progress.data_quality.expectations
+# MAGIC              ,'array<struct<dataset: string, failed_records: bigint, name: string, passed_records: bigint>>')) expectations
+# MAGIC   FROM demo_cdc_dlt_system_event_log_raw
+# MAGIC   where details:flow_progress.status='COMPLETED' and details:flow_progress.data_quality.expectations is not null
+# MAGIC   ORDER BY timestamp);
+# MAGIC select * from cdc_dlt_expectations
 
 # COMMAND ----------
 
@@ -163,11 +112,11 @@ print('storage_path:  {}'.format(storage_path))
 # MAGIC        details:flow_definition.schema,
 # MAGIC        details:flow_definition.explain_text,
 # MAGIC        details:flow_definition
-# MAGIC   FROM $db_name.event_log e
+# MAGIC   FROM demo_cdc_dlt_system_event_log_raw e
 # MAGIC  INNER JOIN (
 # MAGIC               SELECT details:flow_definition.output_dataset output_dataset,
 # MAGIC                      MAX(timestamp) max_timestamp
-# MAGIC                 FROM $db_name.event_log
+# MAGIC                 FROM demo_cdc_dlt_system_event_log_raw
 # MAGIC                WHERE details:flow_definition.output_dataset IS NOT NULL
 # MAGIC                GROUP BY details:flow_definition.output_dataset
 # MAGIC             ) m
@@ -183,23 +132,12 @@ print('storage_path:  {}'.format(storage_path))
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC SELECT
-# MAGIC   id,
-# MAGIC   expectations.dataset,
-# MAGIC   expectations.name,
-# MAGIC   expectations.failed_records,
-# MAGIC   expectations.passed_records
-# MAGIC FROM(
-# MAGIC   SELECT 
-# MAGIC     id,
-# MAGIC     timestamp,
-# MAGIC     details:flow_progress.metrics,
-# MAGIC     details:flow_progress.data_quality.dropped_records,
-# MAGIC     explode(from_json(details:flow_progress:data_quality:expectations
-# MAGIC              ,schema_of_json("[{'name':'str', 'dataset':'str', 'passed_records':42, 'failed_records':42}]"))) expectations
-# MAGIC   FROM event_log
-# MAGIC   WHERE details:flow_progress.metrics IS NOT NULL) data_quality
+# MAGIC %sql 
+# MAGIC select sum(expectations.failed_records) as failed_records, 
+# MAGIC sum(expectations.passed_records) as passed_records, 
+# MAGIC expectations.name 
+# MAGIC from cdc_dlt_expectations 
+# MAGIC group by expectations.name
 
 # COMMAND ----------
 
@@ -207,24 +145,12 @@ print('storage_path:  {}'.format(storage_path))
 
 # COMMAND ----------
 
-# MAGIC %sql 
-# MAGIC -- Get details from Silver merged table
-# MAGIC SELECT DISTINCT COUNT(id) RecordCount,
-# MAGIC        MAX(id) MaxId
-# MAGIC   FROM $db_name.customer_silver
-# MAGIC --   ORDER BY bal DESC
-# MAGIC  LIMIT 20
-# MAGIC ;
-
-# COMMAND ----------
-
-# MAGIC %sql 
-# MAGIC -- Get details from Bronze landed table
-# MAGIC SELECT COUNT(DISTINCT id) DistinctRecordCount,
-# MAGIC        COUNT(1) RecordCount,
-# MAGIC        MAX(id) MaxId,
-# MAGIC        MAX(operation_date) MostRecentUpdate
-# MAGIC   FROM $db_name.customer_bronze
-# MAGIC --   ORDER BY bal DESC
-# MAGIC  LIMIT 20
-# MAGIC ;
+# MAGIC %python 
+# MAGIC import plotly.express as px
+# MAGIC expectations_metrics = spark.sql("
+# MAGIC                                  select sum(expectations.failed_records) as failed_records, 
+# MAGIC                                  sum(expectations.passed_records) as passed_records, 
+# MAGIC                                  expectations.name 
+# MAGIC                                  from cdc_dlt_expectations
+# MAGIC                                  group by expectations.name").toPandas()
+# MAGIC px.bar(expectations_metrics, x="name", y=["passed_records", "failed_records"], title="DLT expectations metrics")

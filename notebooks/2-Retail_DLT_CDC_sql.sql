@@ -3,7 +3,11 @@
 -- MAGIC 
 -- MAGIC # Implement CDC In DLT Pipeline: Change Data Capture
 -- MAGIC 
--- MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png", width='1500'/>
+-- MAGIC -----------------
+-- MAGIC ###### By Morgan Mazouchi
+-- MAGIC -----------------
+-- MAGIC 
+-- MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/dlt%20end%20to%20end%20flow.png">
 
 -- COMMAND ----------
 
@@ -37,7 +41,7 @@
 -- MAGIC 
 -- MAGIC ### CDC Approaches 
 -- MAGIC 
--- MAGIC 1- **Develop in-house CDC process:** 
+-- MAGIC **1- Develop in-house CDC process:** 
 -- MAGIC 
 -- MAGIC ***Complex Task:*** CDC Data Replication is not a one-time easy solution. Due to the differences between Database Providers, Varying Record Formats, and the inconvenience of accessing Log Records, CDC is challenging.
 -- MAGIC 
@@ -45,13 +49,13 @@
 -- MAGIC 
 -- MAGIC ***Overburdening:*** Developers in companies already face the burden of public queries. Additional work for building customizes CDC solution will affect existing revenue-generating projects.
 -- MAGIC 
--- MAGIC 2- **Using CDC tools** such as Debezium, Hevo Data, IBM Infosphere, Qlik Replicate, Talend, Oracle GoldenGate, StreamSets.
+-- MAGIC **2- Using CDC tools** such as Debezium, Hevo Data, IBM Infosphere, Qlik Replicate, Talend, Oracle GoldenGate, StreamSets.
 -- MAGIC 
--- MAGIC In this demo repo we are using CDC data coming from Debezium. 
--- MAGIC Since Debezium is reading database logs:
+-- MAGIC In this demo repo we are using CDC data coming from a CDC tool. 
+-- MAGIC Since a CDC tool is reading database logs:
 -- MAGIC We are no longer dependant on developers updating a certain column 
 -- MAGIC 
--- MAGIC — Debezium takes care of capturing every changed row. It records the history of data changes in Kafka logs, from where your application consumes them. 
+-- MAGIC — A CDC tool like Debezium takes care of capturing every changed row. It records the history of data changes in Kafka logs, from where your application consumes them. 
 
 -- COMMAND ----------
 
@@ -59,15 +63,15 @@
 -- MAGIC 
 -- MAGIC ## Setup/Requirements:
 -- MAGIC 
--- MAGIC Prior to run this notebook as a pipeline, run notebook 00_Retail_Data_CDC_Generator, and use storage path printed in result of Cdm 5 in that notebook and use the path in Cmd 5 in this notebook to access the generated CDC data.
+-- MAGIC Prior to running this notebook as a pipeline, make sure to include a path to 1-CDC_DataGenerator notebook in your DLT pipeline, to let this notebook runs on top of the generated CDC data.
 
 -- COMMAND ----------
 
 -- MAGIC %md
 -- MAGIC ## How to synchronize your SQL Database with your Lakehouse? 
--- MAGIC CDC flow with Debezium, autoloader and DLT pipeline:
+-- MAGIC CDC flow with a CDC tool, autoloader and DLT pipeline:
 -- MAGIC 
--- MAGIC - Debezium reads database logs, produces json messages that includes the changes, and streams the records with changes description to Kafka
+-- MAGIC - A CDC tool reads database logs, produces json messages that includes the changes, and streams the records with changes description to Kafka
 -- MAGIC - Kafka streams the messages  which holds INSERT, UPDATE and DELETE operations, and stores them in cloud object storage (S3 folder, ADLS, etc).
 -- MAGIC - Using Autoloader we incrementally load the messages from cloud object storage, and stores them in Bronze table as it stores the raw messages 
 -- MAGIC - Next we can perform APPLY CHANGES INTO on the cleaned Bronze layer table to propagate the most updated data downstream to the Silver Table
@@ -82,8 +86,7 @@
 -- MAGIC 
 -- MAGIC ###How does CDC tools like Debezium output looks like?
 -- MAGIC 
--- MAGIC A json message describing the changed data
--- MAGIC Some interesting fields:
+-- MAGIC A json message describing the changed data has interesting fields similar to the list below: 
 -- MAGIC 
 -- MAGIC - operation: an operation code (DELETE, APPEND, UPDATE, CREATE)
 -- MAGIC - operation_date: the date and timestamp for the record came for each operation action
@@ -91,6 +94,8 @@
 -- MAGIC Some other fields that you may see in Debezium output (not included in this demo):
 -- MAGIC - before: the row before the change
 -- MAGIC - after: the row after the change
+-- MAGIC 
+-- MAGIC To learn more about the expected fields check out [this reference](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-update-events)
 
 -- COMMAND ----------
 
@@ -104,19 +109,26 @@
 -- MAGIC 
 -- MAGIC Autoloader allow us to efficiently ingest millions of files from a cloud storage, and support efficient schema inference and evolution at scale. In this notebook we leverage Autoloader to handle streaming (and batch) data.
 -- MAGIC 
--- MAGIC Let's use it to [create our pipeline](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485&owned-by-me=true&name-order=ascend#joblist/pipelines/9c8cb908-b438-495c-931d-39fcf72c5dca) and ingest the raw JSON data being delivered by an external provider. 
+-- MAGIC Let's use it to create our pipeline and ingest the raw JSON data being delivered by an external provider. 
+
+-- COMMAND ----------
+
+-- DBTITLE 1,Input data from CDC
+-- MAGIC %python
+-- MAGIC display(spark.read.json("/tmp/demo/cdc_raw/customers"))
 
 -- COMMAND ----------
 
 -- DBTITLE 1,Let's explore our incoming data - Bronze Table - Autoloader & DLT
--- Create the bronze information table containing the raw JSON data taken from the storage path printed in Cmd5 in 00_Retail_Data_CDC_Generator notebook
+-- Create the bronze information table containing the raw JSON data 
 
-CREATE INCREMENTAL LIVE TABLE customer_bronze
+CREATE STREAMING LIVE TABLE customer_bronze
 (
 address string,
 email string,
 id string,
-name string,
+firstname string,
+lastname string,
 operation string,
 operation_date string,
 _rescued_data string 
@@ -125,16 +137,13 @@ TBLPROPERTIES ("quality" = "bronze")
 COMMENT "New customer data incrementally ingested from cloud object storage landing zone"
 AS 
 SELECT * 
-FROM cloud_files("/home/morganmazouchi@databricks.com/mj_retail/landing", "json", map("cloudFiles.inferColumnTypes", "true"));
+FROM cloud_files("/tmp/demo/cdc_raw/customers", "json", map("cloudFiles.inferColumnTypes", "true"));
 
 -- COMMAND ----------
 
 -- DBTITLE 1,Silver Layer - Cleansed Table (Impose Constraints)
--- Create the bronze information table containing the raw JSON data taken from the storage path printed in Cmd5 in 00_Retail_Data_CDC_Generator notebook
-
-CREATE INCREMENTAL LIVE TABLE customer_bronze_clean_v(
+CREATE STREAMING LIVE TABLE customer_bronze_clean_v(
   CONSTRAINT valid_id EXPECT (id IS NOT NULL) ON VIOLATION DROP ROW,
-  CONSTRAINT valid_name EXPECT (name IS NOT NULL) ON VIOLATION DROP ROW,
   CONSTRAINT valid_address EXPECT (address IS NOT NULL),
   CONSTRAINT valid_operation EXPECT (operation IS NOT NULL) ON VIOLATION DROP ROW
 )
@@ -150,14 +159,14 @@ FROM STREAM(live.customer_bronze);
 -- MAGIC 
 -- MAGIC <img src="https://raw.githubusercontent.com/morganmazouchi/Delta-Live-Tables/main/Images/cdc_silver_layer.png" alt='Make all your data ready for BI and ML' style='float: right' width='1000'/>
 -- MAGIC 
--- MAGIC The silver `customer_silver` table will contain the most up to date view. It'll be a replicate of the original MYSQL table.
+-- MAGIC The silver `customer_silver` table will contains the most up to date view. It'll be a replicate of the original MYSQL table.
 -- MAGIC 
 -- MAGIC To propagate the `Apply Changes Into` operations downstream to the `Silver` layer, we must explicitly enable the feature in pipeline by adding and enabling the applyChanges configuration to the DLT pipeline settings.
 
 -- COMMAND ----------
 
 -- DBTITLE 1,Delete unwanted clients records - Silver Table - DLT SQL 
-CREATE INCREMENTAL LIVE TABLE customer_silver
+CREATE STREAMING LIVE TABLE customer_silver
 TBLPROPERTIES ("quality" = "silver")
 COMMENT "Clean, merged customers";
 
@@ -165,9 +174,10 @@ COMMENT "Clean, merged customers";
 
 APPLY CHANGES INTO live.customer_silver
 FROM stream(live.customer_bronze_clean_v)
-  KEYS (Id)
+  KEYS (id)
+  IGNORE NULL UPDATES
   APPLY AS DELETE WHEN operation = "DELETE"
-  SEQUENCE BY operation_date --primary key, auto-incrementing ID of any kind that can be used to identity order of events, or timestamp
+  SEQUENCE BY operation_date --auto-incremental ID to identity order of events
   COLUMNS * EXCEPT (operation, operation_date);
 
 -- COMMAND ----------
