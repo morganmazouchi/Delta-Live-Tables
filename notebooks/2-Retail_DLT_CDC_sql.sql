@@ -113,16 +113,9 @@
 
 -- COMMAND ----------
 
--- DBTITLE 1,Input data from CDC
--- MAGIC %python
--- MAGIC display(spark.read.json("/tmp/demo/cdc_raw/customers"))
-
--- COMMAND ----------
-
 -- DBTITLE 1,Let's explore our incoming data - Bronze Table - Autoloader & DLT
--- Create the bronze information table containing the raw JSON data 
-
-CREATE STREAMING LIVE TABLE customer_bronze
+SET spark.source;
+CREATE OR REFRESH STREAMING LIVE TABLE customer_bronze
 (
 address string,
 email string,
@@ -137,12 +130,12 @@ TBLPROPERTIES ("quality" = "bronze")
 COMMENT "New customer data incrementally ingested from cloud object storage landing zone"
 AS 
 SELECT * 
-FROM cloud_files("/tmp/demo/cdc_raw/customers", "json", map("cloudFiles.inferColumnTypes", "true"));
+FROM cloud_files("${source}/customers", "json", map("cloudFiles.inferColumnTypes", "true"));
 
 -- COMMAND ----------
 
 -- DBTITLE 1,Silver Layer - Cleansed Table (Impose Constraints)
-CREATE STREAMING LIVE TABLE customer_bronze_clean_v(
+CREATE OR REFRESH TEMPORARY STREAMING LIVE TABLE customer_bronze_clean_v(
   CONSTRAINT valid_id EXPECT (id IS NOT NULL) ON VIOLATION DROP ROW,
   CONSTRAINT valid_address EXPECT (address IS NOT NULL),
   CONSTRAINT valid_operation EXPECT (operation IS NOT NULL) ON VIOLATION DROP ROW
@@ -166,7 +159,7 @@ FROM STREAM(live.customer_bronze);
 -- COMMAND ----------
 
 -- DBTITLE 1,Delete unwanted clients records - Silver Table - DLT SQL 
-CREATE STREAMING LIVE TABLE customer_silver
+CREATE OR REFRESH STREAMING LIVE TABLE customer_silver
 TBLPROPERTIES ("quality" = "silver")
 COMMENT "Clean, merged customers";
 
@@ -175,7 +168,6 @@ COMMENT "Clean, merged customers";
 APPLY CHANGES INTO live.customer_silver
 FROM stream(live.customer_bronze_clean_v)
   KEYS (id)
-  IGNORE NULL UPDATES
   APPLY AS DELETE WHEN operation = "DELETE"
   SEQUENCE BY operation_date --auto-incremental ID to identity order of events
   COLUMNS * EXCEPT (operation, operation_date);

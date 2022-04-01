@@ -26,7 +26,9 @@
     "name": "CDC_blog",
     "storage": "dbfs:/home/mydir/myDB/dlt_storage",
     "configuration": {
-        "pipelines.applyChangesPreviewEnabled": "true"
+        "
+        "pipelines.applyChangesPreviewEnabled": "true",
+         source": "/tmp/demo/cdc_raw"
     },
     "target": "myDB"
 }

@@ -101,11 +101,6 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Input data from CDC
-display(spark.read.json("/tmp/demo/cdc_raw/customers"))
-
-# COMMAND ----------
-
 # MAGIC %md-sandbox
 # MAGIC ### Incremental data loading using Auto Loader (cloud_files)
 # MAGIC <div style="float:right">
@@ -139,11 +134,12 @@ import dlt
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-@dlt.create_table(name="customer_bronze",
+source = spark.conf.get("source")
+
+@dlt.table(name="customer_bronze",
                   comment = "New customer data incrementally ingested from cloud object storage landing zone",
   table_properties={
-    "myCompanyPipeline.quality": "bronze",
-    "pipelines.autoOptimize.managed": "true"
+    "quality": "bronze"
   }
 )
 
@@ -152,13 +148,13 @@ def customer_bronze():
     spark.readStream.format("cloudFiles") \
       .option("cloudFiles.format", "json") \
       .option("cloudFiles.inferColumnTypes", "true") \
-      .load("/tmp/demo/cdc_raw/customers")
+      .load(f"{source}/customers")
   )
 
 # COMMAND ----------
 
 # DBTITLE 1,Silver Layer - Cleansed Table (Impose Constraints)
-@dlt.create_table(name="customer_bronze_clean_v",
+@dlt.view(name="customer_bronze_clean_v",
   comment="Cleansed bronze customer view (i.e. what will become Silver)")
 
 @dlt.expect_or_drop("valid_id", "id IS NOT NULL")
@@ -186,7 +182,7 @@ def customer_bronze_clean_v():
 dlt.create_target_table(name="customer_silver",
   comment="Clean, merged customers",
   table_properties={
-    "myCompanyPipeline.quality": "silver",
+    "quality": "silver",
   }
 )
 
@@ -197,7 +193,6 @@ dlt.apply_changes(
   source = "customer_bronze_clean_v", #the incoming CDC
   keys = ["id"], #Primary key to match the rows to upsert/delete
   sequence_by = col("operation_date"), #deduplicate by operation date getting the most recent value
-  ignore_null_updates = False,
   apply_as_deletes = expr("operation = 'DELETE'"), #DELETE condition
   except_column_list = ["operation", "operation_date", "_rescued_data"] # drop metadata columns
 )
