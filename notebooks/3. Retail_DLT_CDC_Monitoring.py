@@ -147,10 +147,9 @@ dbutils.widgets.text('storage_path','/tmp/dlt_cdc')
 
 # MAGIC %python 
 # MAGIC import plotly.express as px
-# MAGIC expectations_metrics = spark.sql("
-# MAGIC                                  select sum(expectations.failed_records) as failed_records, 
+# MAGIC expectations_metrics = spark.sql("""select sum(expectations.failed_records) as failed_records, 
 # MAGIC                                  sum(expectations.passed_records) as passed_records, 
 # MAGIC                                  expectations.name 
 # MAGIC                                  from cdc_dlt_expectations
-# MAGIC                                  group by expectations.name").toPandas()
+# MAGIC                                  group by expectations.name""").toPandas()
 # MAGIC px.bar(expectations_metrics, x="name", y=["passed_records", "failed_records"], title="DLT expectations metrics")

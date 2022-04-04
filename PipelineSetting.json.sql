@@ -1,12 +1,9 @@
 -- Databricks notebook source
 {
-    "clusters": [
+     "clusters": [
         {
             "label": "default",
-            "autoscale": {
-                "min_workers": 1,
-                "max_workers": 5
-            }
+            "num_workers": 1
         }
     ],
     "development": true,
