@@ -114,23 +114,27 @@
 -- COMMAND ----------
 
 -- DBTITLE 1,Let's explore our incoming data - Bronze Table - Autoloader & DLT
-SET spark.source;
-CREATE OR REFRESH STREAMING LIVE TABLE customer_bronze
-(
-address string,
-email string,
-id string,
-firstname string,
-lastname string,
-operation string,
-operation_date string,
-_rescued_data string 
-)
-TBLPROPERTIES ("quality" = "bronze")
-COMMENT "New customer data incrementally ingested from cloud object storage landing zone"
-AS 
-SELECT * 
-FROM cloud_files("${source}/customers", "json", map("cloudFiles.inferColumnTypes", "true"));
+SET
+  spark.source;
+CREATE
+  OR REFRESH STREAMING LIVE TABLE customer_bronze (
+    address string,
+    email string,
+    id string,
+    firstname string,
+    lastname string,
+    operation string,
+    operation_date string,
+    _rescued_data string
+  ) TBLPROPERTIES ("quality" = "bronze") COMMENT "New customer data incrementally ingested from cloud object storage landing zone" AS
+SELECT
+  *
+FROM
+  cloud_files(
+    "${source}/customers",
+    "json",
+    map("cloudFiles.inferColumnTypes", "true")
+  );
 
 -- COMMAND ----------
 
@@ -143,7 +147,7 @@ CREATE OR REFRESH TEMPORARY STREAMING LIVE TABLE customer_bronze_clean_v(
 TBLPROPERTIES ("quality" = "silver")
 COMMENT "Cleansed bronze customer view (i.e. what will become Silver)"
 AS SELECT * 
-FROM STREAM(live.customer_bronze);
+FROM STREAM(LIVE.customer_bronze);
 
 -- COMMAND ----------
 
@@ -165,8 +169,8 @@ COMMENT "Clean, merged customers";
 
 -- COMMAND ----------
 
-APPLY CHANGES INTO live.customer_silver
-FROM stream(live.customer_bronze_clean_v)
+APPLY CHANGES INTO LIVE.customer_silver
+FROM stream(LIVE.customer_bronze_clean_v)
   KEYS (id)
   APPLY AS DELETE WHEN operation = "DELETE"
   SEQUENCE BY operation_date --auto-incremental ID to identity order of events
