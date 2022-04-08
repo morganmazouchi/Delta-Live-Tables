@@ -8,6 +8,7 @@
     ],
     "development": true,
     "continuous": false,
+    "edition": "advanced",
     "libraries": [
         {
             "notebook": {
