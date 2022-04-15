@@ -9,24 +9,25 @@
     "development": true,
     "continuous": false,
     "edition": "advanced",
+    "photon": false,
     "libraries": [
         {
             "notebook": {
-                "path": "/Users/mojgan.mazouchi@databricks.com/ETL- Data Engineering/DLT_CDC/notebooks/1-CDC_DataGenerator"
+"path":"/Repos/mojgan.mazouchi@databricks.com/Delta-Live-Tables/notebooks/1-CDC_DataGenerator"
             }
         },
         {
             "notebook": {
-                "path": "/Users/mojgan.mazouchi@databricks.com/ETL- Data Engineering/DLT_CDC/notebooks/2-Retail_DLT_CDC_sql" 
+"path":"/Repos/mojgan.mazouchi@databricks.com/Delta-Live-Tables/notebooks/2-Retail_DLT_CDC_sql"
             }
         }
     ],
     "name": "CDC_blog",
     "storage": "dbfs:/home/mydir/myDB/dlt_storage",
     "configuration": {
-        "
-        "pipelines.applyChangesPreviewEnabled": "true",
-         source": "/tmp/demo/cdc_raw"
+        "source": "/tmp/demo/cdc_raw",
+        "pipelines.applyChangesPreviewEnabled": "true"
     },
-    "target": "myDB"
+    "target": "my_database"
 }
+
